@@ -58,52 +58,83 @@ export class TokenCache {
    */
   private async fetchToken(registry: string, ident?: Ident): Promise<string> {
     const configuration = this.configuration;
-    await StreamReport.start(
-      { configuration, stdout: process.stdout },
-      async (report) => {
-        const prettyRegistry = formatUtils.pretty(
-          configuration,
-          registry,
-          formatUtils.Type.URL,
-        );
-        // first see if a token is set via .yarnrc, either hardcoded or via environment variable
-        const authConfig = this.getAuthConfiguration(registry, ident);
-        const tokenFromYarnrc = getConfigString(authConfig, "npmAuthToken");
-        if (tokenFromYarnrc) {
-          this.cache[registry] = tokenFromYarnrc;
-          report.reportInfo(
-            null,
-            `Authenticated to: ${prettyRegistry} (via configuration)`,
+    let resolvedToken: string | undefined;
+    let innerError: unknown;
+
+    try {
+      await StreamReport.start(
+        { configuration, stdout: process.stdout },
+        async (report) => {
+          const prettyRegistry = formatUtils.pretty(
+            configuration,
+            registry,
+            formatUtils.Type.URL,
           );
-          return;
-        }
+          try {
+            // first see if a token is set via .yarnrc, either hardcoded or via environment variable
+            const authConfig = this.getAuthConfiguration(registry, ident);
+            const tokenFromYarnrc = getConfigString(authConfig, "npmAuthToken");
+            if (tokenFromYarnrc) {
+              resolvedToken = tokenFromYarnrc;
+              report.reportInfo(
+                null,
+                `Authenticated to: ${prettyRegistry} (via configuration)`,
+              );
+              return;
+            }
 
-        const organization = getOrganizationFromFeedUrl(registry);
-        if (!organization) {
-          throw new Error(
-            `Could not determine organization from registry URL: ${registry}`,
-          );
-        }
+            const organization = getOrganizationFromFeedUrl(registry);
+            if (!organization) {
+              throw new Error(
+                `Could not determine organization from registry URL: ${registry}`,
+              );
+            }
 
-        const pat = await generateNpmrcPat(
-          organization,
-          registry,
-          false,
-          this.azureAuthPath,
-        );
-        this.cache[registry] = pat;
-        report.reportInfo(
-          null,
-          `Authenticated to: ${prettyRegistry} (via ADO CLI)`,
-        );
-      },
-    );
+            const pat = await generateNpmrcPat(
+              organization,
+              registry,
+              false,
+              this.azureAuthPath,
+            );
+            resolvedToken = pat;
+            report.reportInfo(
+              null,
+              `Authenticated to: ${prettyRegistry} (via ADO CLI)`,
+            );
+          } catch (err) {
+            // Capture the real error so we can rethrow it after the StreamReport
+            // closes; otherwise StreamReport swallows it and the caller sees a
+            // misleading "Chaining cycle detected for promise" error caused by
+            // returning the in-flight cache entry.
+            innerError = err;
+            report.reportError(
+              0 /* MessageName.UNNAMED */,
+              `Failed to authenticate to ${prettyRegistry}: ${
+                err instanceof Error ? err.message : String(err)
+              }`,
+            );
+          }
+        },
+      );
+    } catch (err) {
+      // Don't keep a rejected/in-flight promise in the cache.
+      delete this.cache[registry];
+      throw err;
+    }
 
-    const pat = this.cache[registry];
-    if (pat == null) {
+    if (resolvedToken == null) {
+      // Don't keep the in-flight promise in the cache; allow future retries.
+      delete this.cache[registry];
+      if (innerError) {
+        throw innerError instanceof Error
+          ? innerError
+          : new Error(String(innerError));
+      }
       throw new Error(`Failed to authenticate to: ${registry}`);
     }
-    return pat;
+
+    this.cache[registry] = resolvedToken;
+    return resolvedToken;
   }
 
   /**
