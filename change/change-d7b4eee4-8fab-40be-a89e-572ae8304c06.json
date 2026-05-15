@@ -1,0 +1,11 @@
+{
+  "changes": [
+    {
+      "type": "patch",
+      "comment": "Fix \"Chaining cycle detected for promise\" when ADO auth fails by no longer returning the in-flight cache entry from TokenCache.fetchToken.",
+      "packageName": "@microsoft/yarn-plugin-ado-auth",
+      "email": "198982749+Copilot@users.noreply.github.com",
+      "dependentChangeType": "patch"
+    }
+  ]
+}
