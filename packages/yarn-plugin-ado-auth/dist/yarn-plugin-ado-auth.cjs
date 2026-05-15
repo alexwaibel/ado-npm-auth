@@ -541,7 +541,7 @@ var plugin = (() => {
             } catch (err) {
               innerError = err;
               report.reportError(
-                0,
+                import_core2.MessageName.UNNAMED,
                 `Failed to authenticate to ${prettyRegistry}: ${err instanceof Error ? err.message : String(err)}`
               );
             }

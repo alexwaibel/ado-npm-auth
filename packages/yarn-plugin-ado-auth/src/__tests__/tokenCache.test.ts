@@ -1,5 +1,6 @@
 import { beforeEach, expect, test, vi } from "vitest";
 import { TokenCache } from "../tokenCache.js";
+import type { Configuration } from "@yarnpkg/core";
 
 vi.mock("@microsoft/ado-npm-auth-lib", async () => {
   return {
@@ -24,6 +25,9 @@ vi.mock("@yarnpkg/core", async () => {
         URL: "URL",
       },
     },
+    MessageName: {
+      UNNAMED: 0,
+    },
   };
 });
 
@@ -34,8 +38,9 @@ beforeEach(() => {
 test("propagates auth errors and retries after failure", async () => {
   const { generateNpmrcPat } = await import("@microsoft/ado-npm-auth-lib");
   vi.mocked(generateNpmrcPat).mockRejectedValue(new Error("auth boom"));
+  const configuration = new Map<string, unknown>() as unknown as Configuration;
 
-  const tokenCache = new TokenCache(new Map<string, unknown>() as any, () => ({
+  const tokenCache = new TokenCache(configuration, () => ({
     adoNpmAuthFeedPrefix: "",
     adoNpmAuthToolPath: "/nonexistent/azureauth",
   }));

@@ -1,6 +1,7 @@
 import {
   type Configuration,
   type Ident,
+  MessageName,
   StreamReport,
   formatUtils,
 } from "@yarnpkg/core";
@@ -108,7 +109,7 @@ export class TokenCache {
             // returning the in-flight cache entry.
             innerError = err;
             report.reportError(
-              0 /* MessageName.UNNAMED */,
+              MessageName.UNNAMED,
               `Failed to authenticate to ${prettyRegistry}: ${
                 err instanceof Error ? err.message : String(err)
               }`,
