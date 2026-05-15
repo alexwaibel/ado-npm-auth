@@ -500,7 +500,7 @@ var plugin = (() => {
     async fetchToken(registry, ident) {
       const configuration = this.configuration;
       let resolvedToken;
-      let innerError;
+      let innerError = void 0;
       try {
         await import_core2.StreamReport.start(
           { configuration, stdout: process.stdout },

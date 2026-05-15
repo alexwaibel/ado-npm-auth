@@ -47,9 +47,17 @@ test("propagates auth errors and retries after failure", async () => {
   const registry =
     "https://pkgs.dev.azure.com/org/_packaging/feed/npm/registry";
 
-  await expect(tokenCache.getToken(registry)).rejects.toMatchObject({
-    message: "auth boom",
-  });
+  let firstFailure: Error | undefined;
+  try {
+    await tokenCache.getToken(registry);
+  } catch (error) {
+    firstFailure = error as Error;
+  }
+  expect(firstFailure).toBeDefined();
+  expect(firstFailure?.message).toBe("auth boom");
+  expect(firstFailure?.message).not.toContain(
+    "Chaining cycle detected for promise",
+  );
   await expect(tokenCache.getToken(registry)).rejects.toThrow("auth boom");
   expect(generateNpmrcPat).toHaveBeenCalledTimes(2);
 });

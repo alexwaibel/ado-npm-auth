@@ -60,7 +60,7 @@ export class TokenCache {
   private async fetchToken(registry: string, ident?: Ident): Promise<string> {
     const configuration = this.configuration;
     let resolvedToken: string | undefined;
-    let innerError: unknown;
+    let innerError: unknown = undefined;
 
     try {
       await StreamReport.start(
